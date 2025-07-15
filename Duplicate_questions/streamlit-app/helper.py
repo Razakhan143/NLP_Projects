@@ -1,136 +1,51 @@
 import re
-
-import joblib
-import distance
-from fuzzywuzzy import fuzz
 import joblib
 import numpy as np
+from fuzzywuzzy import fuzz
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+try:
+    from distance import lcsubstrings
+except ImportError:
+    from difflib import SequenceMatcher
 
-cv = joblib.load('tfidf.pkl')
-
-
-def test_common_words(q1,q2):
-    w1 = set(map(lambda word: word.lower().strip(), q1.split(" ")))
-    w2 = set(map(lambda word: word.lower().strip(), q2.split(" ")))
-    return len(w1 & w2)
-
-def test_total_words(q1,q2):
-    w1 = set(map(lambda word: word.lower().strip(), q1.split(" ")))
-    w2 = set(map(lambda word: word.lower().strip(), q2.split(" ")))
-    return (len(w1) + len(w2))
-
-
-def test_fetch_token_features(q1, q2):
-    SAFE_DIV = 0.0001
-
-    STOP_WORDS = joblib.load('stopwords.pkl')
-
-    token_features = [0.0] * 8
-
-    # Converting the Sentence into Tokens:
-    q1_tokens = q1.split()
-    q2_tokens = q2.split()
-
-    if len(q1_tokens) == 0 or len(q2_tokens) == 0:
-        return token_features
-
-    # Get the non-stopwords in Questions
-    q1_words = set([word for word in q1_tokens if word not in STOP_WORDS])
-    q2_words = set([word for word in q2_tokens if word not in STOP_WORDS])
-
-    # Get the stopwords in Questions
-    q1_stops = set([word for word in q1_tokens if word in STOP_WORDS])
-    q2_stops = set([word for word in q2_tokens if word in STOP_WORDS])
-
-    # Get the common non-stopwords from Question pair
-    common_word_count = len(q1_words.intersection(q2_words))
-
-    # Get the common stopwords from Question pair
-    common_stop_count = len(q1_stops.intersection(q2_stops))
-
-    # Get the common Tokens from Question pair
-    common_token_count = len(set(q1_tokens).intersection(set(q2_tokens)))
-
-    token_features[0] = common_word_count / (min(len(q1_words), len(q2_words)) + SAFE_DIV)
-    token_features[1] = common_word_count / (max(len(q1_words), len(q2_words)) + SAFE_DIV)
-    token_features[2] = common_stop_count / (min(len(q1_stops), len(q2_stops)) + SAFE_DIV)
-    token_features[3] = common_stop_count / (max(len(q1_stops), len(q2_stops)) + SAFE_DIV)
-    token_features[4] = common_token_count / (min(len(q1_tokens), len(q2_tokens)) + SAFE_DIV)
-    token_features[5] = common_token_count / (max(len(q1_tokens), len(q2_tokens)) + SAFE_DIV)
-
-    # Last word of both question is same or not
-    token_features[6] = int(q1_tokens[-1] == q2_tokens[-1])
-
-    # First word of both question is same or not
-    token_features[7] = int(q1_tokens[0] == q2_tokens[0])
-
-    return token_features
+    def lcsubstrings(s1, s2):
+        matcher = SequenceMatcher(None, s1, s2)
+        match = matcher.find_longest_match(0, len(s1), 0, len(s2))
+        if match.size == 0:
+            return []
+        return [s1[match.a : match.a + match.size]]
 
 
-def test_fetch_length_features(q1, q2):
-    length_features = [0.0] * 3
-
-    # Converting the Sentence into Tokens:
-    q1_tokens = q1.split()
-    q2_tokens = q2.split()
-
-    if len(q1_tokens) == 0 or len(q2_tokens) == 0:
-        return length_features
-
-    # Absolute length features
-    length_features[0] = abs(len(q1_tokens) - len(q2_tokens))
-
-    # Average Token Length of both Questions
-    length_features[1] = (len(q1_tokens) + len(q2_tokens)) / 2
-
-    strs = list(distance.lcsubstrings(q1, q2))
-    length_features[2] = len(strs[0]) / (min(len(q1), len(q2)) + 1)
-
-    return length_features
-
-
-def test_fetch_fuzzy_features(q1, q2):
-    fuzzy_features = [0.0] * 4
-
-    # fuzz_ratio
-    fuzzy_features[0] = fuzz.QRatio(q1, q2)
-
-    # fuzz_partial_ratio
-    fuzzy_features[1] = fuzz.partial_ratio(q1, q2)
-
-    # token_sort_ratio
-    fuzzy_features[2] = fuzz.token_sort_ratio(q1, q2)
-
-    # token_set_ratio
-    fuzzy_features[3] = fuzz.token_set_ratio(q1, q2)
-
-    return fuzzy_features
+# Global tokenizer to avoid repeated fitting
+global_tokenizer = None
 
 
 def preprocess(q):
+    """
+    Preprocesses a question string by normalizing text, removing special在那
+
+    Args:
+        q (str): Input question string.
+
+    Returns:
+        str: Preprocessed question string.
+    """
+    if q is None or not isinstance(q, (str, bytes)) or not q.strip():
+        return ""
     q = str(q).lower().strip()
 
-    # Replace certain special characters with their string equivalents
-    q = q.replace('%', ' percent')
-    q = q.replace('$', ' dollar ')
-    q = q.replace('₹', ' rupee ')
-    q = q.replace('€', ' euro ')
-    q = q.replace('@', ' at ')
+    # Replace special characters
+    q = q.replace("%", " percent").replace("$", " dollar ").replace("₹", " rupee ").replace("€", " euro ").replace("@", " at ")
+    q = q.replace("[math]", "")
 
-    # The pattern '[math]' appears around 900 times in the whole dataset.
-    q = q.replace('[math]', '')
+    # Replace numbers
+    q = q.replace(",000,000,000 ", "b ").replace(",000,000 ", "m ").replace(",000 ", "k ")
+    q = re.sub(r"([0-9]+)000000000", r"\1b", q)
+    q = re.sub(r"([0-9]+)000000", r"\1m", q)
+    q = re.sub(r"([0-9]+)000", r"\1k", q)
 
-    # Replacing some numbers with string equivalents (not perfect, can be done better to account for more cases)
-    q = q.replace(',000,000,000 ', 'b ')
-    q = q.replace(',000,000 ', 'm ')
-    q = q.replace(',000 ', 'k ')
-    q = re.sub(r'([0-9]+)000000000', r'\1b', q)
-    q = re.sub(r'([0-9]+)000000', r'\1m', q)
-    q = re.sub(r'([0-9]+)000', r'\1k', q)
-
-    # Decontracting words
-    # https://en.wikipedia.org/wiki/Wikipedia%3aList_of_English_contractions
-    # https://stackoverflow.com/a/19794953
+    # Decontract words
     contractions = {
         "ain't": "am not",
         "aren't": "are not",
@@ -248,72 +163,243 @@ def preprocess(q):
         "you'll": "you will",
         "you'll've": "you will have",
         "you're": "you are",
-        "you've": "you have"
+        "you've": "you have",
     }
-
-    q_decontracted = []
-
-    for word in q.split():
-        if word in contractions:
-            word = contractions[word]
-
-        q_decontracted.append(word)
-
-    q = ' '.join(q_decontracted)
-    q = q.replace("'ve", " have")
-    q = q.replace("n't", " not")
-    q = q.replace("'re", " are")
-    q = q.replace("'ll", " will")
-
-    # Removing HTML tags
-    
-    q = re.sub(r'<.*?>', '', q)
-    q = re.sub(r'<.*?>', '', q)
-
-    
-    # Remove punctuations
-    pattern = re.compile('\W')
-    q = re.sub(pattern, ' ', q).strip()
-    q = re.sub(r' \s', ' ', q)
-    
-    
+    q_decontracted = [contractions.get(word, word) for word in q.split()]
+    q = " ".join(q_decontracted)
+    q = q.replace("'ve", " have").replace("n't", " not").replace("'re", " are").replace("'ll", " will")
+    # Remove HTML tags
+    q = re.sub(r"<.*?>", "", q)
+    # Remove punctuation and collapse whitespace
+    q = re.sub(r"\W", " ", q)
+    q = re.sub(r"\s+", " ", q).strip()
     return q
 
 
-def query_point_creator(q1, q2):
-    input_query = []
+def test_common_words(q1, q2):
+    """
+    Counts common words between two questions.
 
-    # preprocess
+    Args:
+        q1 (str): First question.
+        q2 (str): Second question.
+
+    Returns:
+        int: Number of common words.
+    """
+    w1 = set(map(lambda word: word.lower().strip(), q1.split()))
+    w2 = set(map(lambda word: word.lower().strip(), q2.split()))
+    return len(w1 & w2)
+
+
+def test_total_words(q1, q2):
+    """
+    Calculates total unique words in both questions.
+
+    Args:
+        q1 (str): First question.
+        q2 (str): Second question.
+
+    Returns:
+        int: Total number of unique words.
+    """
+    w1 = set(map(lambda word: word.lower().strip(), q1.split()))
+    w2 = set(map(lambda word: word.lower().strip(), q2.split()))
+    return len(w1) + len(w2)
+
+
+def test_fetch_token_features(q1, q2):
+    """
+    Extracts token-based features for question pair similarity.
+
+    Args:
+        q1 (str): First question.
+        q2 (str): Second question.
+
+    Returns:
+        list: List of 8 token-based features.
+    """
+    SAFE_DIV = 0.0001
+    
+    STOP_WORDS = set(['a', 'about', 'above', 'after', 'again', 'against', 'ain', 'all', 'am', 'an', 'and', 'any', 'are', 'aren', "aren't", 'as', 'at', 'be', 'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by', 'can', 'couldn', "couldn't", 'd', 'did', 'didn', "didn't", 'do', 'does', 'doesn', "doesn't", 'doing', 'don', "don't", 'down', 'during', 'each', 'few', 'for', 'from', 'further', 'had', 'hadn', "hadn't", 'has', 'hasn', "hasn't", 'have', 'haven', "haven't", 'having', 'he', "he'd", "he'll", 'her', 'here', 'hers', 'herself', "he's", 'him', 'himself', 'his', 'how', 'i', "i'd", 'if', "i'll", "i'm", 'in', 'into', 'is', 'isn', "isn't", 'it', "it'd", "it'll", "it's", 'its', 'itself', "i've", 'just', 'll', 'm', 'ma', 'me', 'mightn', "mightn't", 'more', 'most', 'mustn', "mustn't", 'my', 'myself', 'needn', "needn't", 'no', 'nor', 'not', 'now', 'o', 'of', 'off', 'on', 'once', 'only', 'or', 'other', 'our', 'ours', 'ourselves', 'out', 'over', 'own', 're', 's', 'same', 'shan', "shan't", 'she', "she'd", "she'll", "she's", 'should', 'shouldn', "shouldn't", "should've", 'so', 'some', 'such', 't', 'than', 'that', "that'll", 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there', 'these', 'they', "they'd", "they'll", "they're", "they've", 'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 've', 'very', 'was', 'wasn', "wasn't", 'we', "we'd", "we'll", "we're", 'were', 'weren', "weren't", "we've", 'what', 'when', 'where', 'which', 'while', 'who', 'whom', 'why', 'will', 'with', 'won', "won't", 'wouldn', "wouldn't", 'y', 'you', "you'd", "you'll", 'your', "you're", 'yours', 'yourself', 'yourselves', "you've"])
+
+    token_features = [0.0] * 8
+    q1_tokens = q1.split()
+    q2_tokens = q2.split()
+
+    if len(q1_tokens) == 0 or len(q2_tokens) == 0:
+        return token_features
+
+    q1_words = set(word for word in q1_tokens if word not in STOP_WORDS)
+    q2_words = set(word for word in q2_tokens if word not in STOP_WORDS)
+    q1_stops = set(word for word in q1_tokens if word in STOP_WORDS)
+    q2_stops = set(word for word in q2_tokens if word in STOP_WORDS)
+
+    common_word_count = len(q1_words.intersection(q2_words))
+    common_stop_count = len(q1_stops.intersection(q2_stops))
+    common_token_count = len(set(q1_tokens).intersection(set(q2_tokens)))
+
+    token_features[0] = (
+        common_word_count / (min(len(q1_words), len(q2_words)) + SAFE_DIV)
+        if q1_words and q2_words
+        else 0.0
+    )
+    token_features[1] = (
+        common_word_count / (max(len(q1_words), len(q2_words)) + SAFE_DIV)
+        if q1_words and q2_words
+        else 0.0
+    )
+    token_features[2] = (
+        common_stop_count / (min(len(q1_stops), len(q2_stops)) + SAFE_DIV)
+        if q1_stops and q2_stops
+        else 0.0
+    )
+    token_features[3] = (
+        common_stop_count / (max(len(q1_stops), len(q2_stops)) + SAFE_DIV)
+        if q1_stops and q2_stops
+        else 0.0
+    )
+    token_features[4] = common_token_count / (min(len(q1_tokens), len(q2_tokens)) + SAFE_DIV)
+    token_features[5] = common_token_count / (max(len(q1_tokens), len(q2_tokens)) + SAFE_DIV)
+    token_features[6] = int(
+        len(q1_tokens) > 0 and len(q2_tokens) > 0 and q1_tokens[-1] == q2_tokens[-1]
+    )
+    token_features[7] = int(
+        len(q1_tokens) > 0 and len(q2_tokens) > 0 and q1_tokens[0] == q2_tokens[0]
+    )
+
+    return token_features
+
+
+def test_fetch_length_features(q1, q2):
+    """
+    Extracts length-based features for question pair similarity.
+
+    Args:
+        q1 (str): First question.
+        q2 (str): Second question.
+
+    Returns:
+        list: List of 3 length-based features.
+    """
+    length_features = [0.0] * 3
+    q1_tokens = q1.split()
+    q2_tokens = q2.split()
+
+    if len(q1_tokens) == 0 or len(q2_tokens) == 0:
+        return length_features
+
+    length_features[0] = abs(len(q1_tokens) - len(q2_tokens))
+    length_features[1] = (len(q1_tokens) + len(q2_tokens)) / 2
+    strs = list(lcsubstrings(q1, q2))
+    length_features[2] = len(strs[0]) / (min(len(q1), len(q2)) + 1) if strs else 0.0
+
+    return length_features
+
+
+def test_fetch_fuzzy_features(q1, q2):
+    """
+    Extracts fuzzy matching features for question pair similarity.
+
+    Args:
+        q1 (str): First question.
+        q2 (str): Second question.
+
+    Returns:
+        list: List of 4 fuzzy matching features.
+    """
+    fuzzy_features = [0.0] * 4
+    fuzzy_features[0] = fuzz.QRatio(q1, q2)
+    fuzzy_features[1] = fuzz.partial_ratio(q1, q2)
+    fuzzy_features[2] = fuzz.token_sort_ratio(q1, q2)
+    fuzzy_features[3] = fuzz.token_set_ratio(q1, q2)
+    return fuzzy_features
+
+
+def token_padding_data(q1, q2, max_len=50, vocab_size=50000):
+    """
+    Converts questions to padded tokenized sequences.
+
+    Args:
+        q1 (list): List of first questions.
+        q2 (list): List of second questions.
+        max_len (int): Maximum length for padding.
+        vocab_size (int): Maximum vocabulary size.
+
+    Returns:
+        tuple: Padded sequences for q1 and q2.
+    """
+    global global_tokenizer
+    if global_tokenizer is None:
+        global_tokenizer = Tokenizer(num_words=vocab_size)
+        global_tokenizer.fit_on_texts(q1 + q2)
+
+    q1_seq = global_tokenizer.texts_to_sequences(q1)
+    q2_seq = global_tokenizer.texts_to_sequences(q2)
+    q1_pad = pad_sequences(q1_seq, maxlen=max_len)
+    q2_pad = pad_sequences(q2_seq, maxlen=max_len)
+    return q1_pad, q2_pad
+
+
+def heuristic_features(features):
+    """
+    Converts feature list to NumPy array.
+
+    Args:
+        features (list): List of features.
+
+    Returns:
+        np.ndarray: Array of features.
+    """
+    return np.array(features)
+
+
+def query_point_creator(q1, q2):
+    """
+    Creates feature vector for a question pair.
+
+    Args:
+        q1 (str): First question.
+        q2 (str): Second question.
+
+    Returns:
+        np.ndarray: Combined feature vector including padded sequences and heuristics.
+    """
+    if not isinstance(q1, str) or not isinstance(q2, str):
+        raise ValueError("Both q1 and q2 must be strings")
+
+    # Preprocess questions
     q1 = preprocess(q1)
     q2 = preprocess(q2)
 
-    # fetch basic features
+    # Initialize feature list
+    input_query = []
+
+    # Basic features
     input_query.append(len(q1))
     input_query.append(len(q2))
-
-    input_query.append(len(q1.split(" ")))
-    input_query.append(len(q2.split(" ")))
-
+    input_query.append(len(q1.split()))
+    input_query.append(len(q2.split()))
     input_query.append(test_common_words(q1, q2))
     input_query.append(test_total_words(q1, q2))
-    input_query.append(round(test_common_words(q1, q2) / test_total_words(q1, q2), 2))
+    input_query.append(
+        round(test_common_words(q1, q2) / (test_total_words(q1, q2) + 0.0001), 2)
+    )
 
-    # fetch token features
-    token_features = test_fetch_token_features(q1, q2)
-    input_query.extend(token_features)
+    # Token features
+    input_query.extend(test_fetch_token_features(q1, q2))
 
-    # fetch length based features
-    length_features = test_fetch_length_features(q1, q2)
-    input_query.extend(length_features)
+    # Length features
+    input_query.extend(test_fetch_length_features(q1, q2))
 
-    # fetch fuzzy features
-    fuzzy_features = test_fetch_fuzzy_features(q1, q2)
-    input_query.extend(fuzzy_features)
+    # Fuzzy features
+    input_query.extend(test_fetch_fuzzy_features(q1, q2))
 
-    # bow feature for q1
-    q1_bow = cv.transform([q1]).toarray()
+    # Padded tokenized sequences
+    q1_pad, q2_pad = token_padding_data([q1], [q2])
 
-    # bow feature for q2
-    q2_bow = cv.transform([q2]).toarray()
+    # Heuristic features
+    heuristics = heuristic_features(input_query)
 
-    return np.hstack((np.array(input_query).reshape(1, 22), q1_bow, q2_bow))
+    # Combine all features
+    return q1_pad, q2_pad, heuristics.reshape(1, -1)

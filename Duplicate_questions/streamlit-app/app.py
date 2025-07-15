@@ -3,6 +3,17 @@ import joblib
 import time
 import helper
 from datetime import datetime
+import os
+import random
+import numpy as np
+import tensorflow as tf
+
+# Ensure deterministic operations
+os.environ['PYTHONHASHSEED'] = '42'
+os.environ['TF_DETERMINISTIC_OPS'] = '1'
+random.seed(42)
+np.random.seed(42)
+tf.random.set_seed(42)
 
 # Page configuration
 st.set_page_config(
@@ -59,6 +70,7 @@ st.markdown("""
     .info-box {
         background: #e3f2fd;
         padding: 1rem;
+        color: #000000;
         border-radius: 8px;
         border-left: 4px solid #2196f3;
         margin: 1rem 0;
@@ -83,10 +95,32 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Load model
+# Load model - Fixed duplicate function definition
 @st.cache_resource
 def load_model():
-    return joblib.load(open('rf_model.pkl','rb'))
+    """Load the trained LSTM model for duplicate question detection"""
+    try:
+        # Check multiple possible paths for the model
+        possible_paths = [
+            "Duplicate_questions/streamlit-app/lstm_model.h5",
+            "lstm_model.h5",
+            "models/lstm_model.h5"
+        ]
+        
+        model_path = None
+        for path in possible_paths:
+            if os.path.exists(path):
+                model_path = path
+                break
+        
+        if model_path:
+            return tf.keras.models.load_model(model_path, custom_objects={'tf': tf, 'helper': helper})
+        else:
+            st.warning("Model file 'lstm_model.h5' not found. Please train the model or provide the file.")
+            return None
+    except Exception as e:
+        st.error(f"Error loading model: {str(e)}")
+        return None
 
 model = load_model()
 
@@ -114,10 +148,10 @@ with st.sidebar:
     st.markdown("## 📈 Model Performance")
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Accuracy", "83.2%", "2.1%")
+        st.metric("Accuracy", "97.2%", "2.1%")
     with col2:
-        st.metric("F1 Score", "83.0%", "0.05")
-    
+        st.metric("Validation", "83.0%", "0.05")
+
     st.markdown("## 🔧 How to Use")
     st.markdown("""
     1. Enter your first question
@@ -189,10 +223,20 @@ if analyze_button:
             time.sleep(1)  # Simulate processing time
             
         # Use actual model for prediction
-        query = helper.query_point_creator(q1, q2)
-        result = model.predict(query)[0]
-        similarity_score = model.predict_proba(query)[0][1]  # Get probability for duplicate class
-        
+        try:
+            q1_p, q2_p, heuristic_features_p = helper.query_point_creator(q1, q2)
+            if model is not None:
+                result1 = model([q1_p, q2_p, heuristic_features_p], training=False)[0][0]
+                result = 1 if result1 > 0.30 else 0
+                similarity_score = float(result1)  # Ensure it's a Python float
+                print(f"probability: {result1}, result: {result}")
+            else:
+                st.error("Model not loaded. Please check if 'lstm_model.h5' exists.")
+                st.stop()
+        except Exception as e:
+            st.error(f"Error during prediction: {str(e)}")
+            st.stop()
+
         st.markdown("## 📋 Analysis Results")
         
         # Display results with enhanced styling
@@ -293,8 +337,8 @@ st.markdown("""
 with st.expander("💡 Try These Example Questions"):
     st.markdown("""
     **Example 1 (Likely Duplicates):**
-    - Question 1: "How do I learn Python programming?"
-    - Question 2: "What's the best way to start learning Python?"
+    - Question 1: "Who is the PM of Pakistan?"
+    - Question 2: "Who is the Current Prime Minister of Pakistan?"
     
     **Example 2 (Likely Not Duplicates):**
     - Question 1: "How do I learn Python programming?"

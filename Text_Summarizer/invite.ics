@@ -1,0 +1,41 @@
+BEGIN:VCALENDAR
+PRODID:-//Google Inc//Google Calendar 70.9054//EN
+VERSION:2.0
+CALSCALE:GREGORIAN
+METHOD:REQUEST
+BEGIN:VTIMEZONE
+TZID:Asia/Karachi
+X-LIC-LOCATION:Asia/Karachi
+BEGIN:STANDARD
+TZOFFSETFROM:+0500
+TZOFFSETTO:+0500
+TZNAME:GMT+5
+DTSTART:19700101T000000
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+DTSTART;TZID=Asia/Karachi:20250713T183000
+DTEND;TZID=Asia/Karachi:20250713T193000
+RRULE:FREQ=WEEKLY;BYDAY=SU
+DTSTAMP:20250706T141531Z
+ORGANIZER;CN=Muhammad Saood Choudhary:mailto:saoodch93@gmail.com
+UID:0i6u90s081ven6s3s7jpuutho6@google.com
+ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=
+ TRUE;CN=razakhanzada100@gmail.com;X-NUM-GUESTS=0:mailto:razakhanzada100@gma
+ il.com
+X-GOOGLE-CONFERENCE:https://meet.google.com/qjx-qgti-qdi
+X-MICROSOFT-CDO-OWNERAPPTID:-2135623106
+CREATED:20250706T141523Z
+DESCRIPTION:-::~:~::~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~
+ :~:~:~:~:~:~:~:~::~:~::-\nJoin with Google Meet: https://meet.google.com/qj
+ x-qgti-qdi\n\nLearn more about Meet at: https://support.google.com/a/users/
+ answer/9282720\n\nPlease do not edit this section.\n-::~:~::~:~:~:~:~:~:~:~
+ :~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~::~:~::-
+LAST-MODIFIED:20250706T141527Z
+LOCATION:
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:R10 Section Leads Sync Up Meeting
+TRANSP:OPAQUE
+END:VEVENT
+END:VCALENDAR
