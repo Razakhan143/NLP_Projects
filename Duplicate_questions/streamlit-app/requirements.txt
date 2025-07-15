@@ -2,6 +2,8 @@ streamlit
 scikit-learn
 fuzzywuzzy
 distance
-transformers
-tensorflow
-numpy
+transformers==4.35.2
+tensorflow==2.19.0
+numpy==1.26.4
+python-Levenshtein
+joblib
