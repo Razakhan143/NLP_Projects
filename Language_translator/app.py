@@ -12,7 +12,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-
+ 
 # Custom CSS for professional styling with subtle colors
 st.markdown("""
 <style>

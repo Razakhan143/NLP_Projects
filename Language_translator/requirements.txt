@@ -1,0 +1,5 @@
+numpy
+pandas
+googletrans
+langdetect
+pyperclip

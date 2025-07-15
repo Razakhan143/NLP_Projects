@@ -2,3 +2,8 @@ streamlit
 sklearn
 fuzzywuzzy
 distance
+transformers
+tensorflow
+numpy
+jonlib
+difflib
