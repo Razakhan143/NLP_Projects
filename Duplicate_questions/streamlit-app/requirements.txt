@@ -5,5 +5,3 @@ distance
 transformers
 tensorflow
 numpy
-joblib
-difflib
