@@ -1,9 +1,4 @@
-numpy
-pandas
-googletrans
+streamlit==1.46.1
 langdetect
-pyperclip
-streamlit
-langdetect
-deep_translator
+deep-translator==1.11.4
 pyperclip

@@ -1,7 +1,7 @@
 import streamlit as st
 from langdetect import detect, LangDetectException
 from deep_translator import GoogleTranslator
-from googletrans import LANGUAGES  # Keep for language codes
+from googletrans import LANGUAGES  # For language codes compatibility
 import pyperclip  # For copy to clipboard functionality
 from datetime import datetime
 import time
@@ -409,7 +409,7 @@ def detect_and_translate(text, target_lang):
                     raise e
                 time.sleep(1)
         
-        return detected_lang, translated_text, None, None  # No pronunciation support in deep_translator
+        return detected_lang, translated_text, None, None  # No pronunciation support
     except Exception as e:
         return None, None, None, str(e)
 
