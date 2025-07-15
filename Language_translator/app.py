@@ -12,7 +12,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
- 
+
 # Custom CSS for professional styling with subtle colors
 st.markdown("""
 <style>
@@ -115,11 +115,11 @@ st.markdown("""
     }
     
     .translation-content {
-    font-size: 1.1rem;
-    line-height: 1.6;
-    color: #000000;  /* Changed to black for better visibility */
-    padding: 0.5rem 0;
-}
+        font-size: 1.1rem;
+        line-height: 1.6;
+        color: #000000;
+        padding: 0.5rem 0;
+    }
     
     .detected-language-info {
         background: #f0f9ff;
@@ -220,14 +220,14 @@ st.markdown("""
     
     /* Input styling */
     .stTextArea > div > div > textarea {
-    border-radius: 8px;
-    border: 2px solid #e2e8f0;
-    padding: 1rem;
-    font-size: 1rem;
-    transition: border-color 0.3s ease;
-    background-color: #ffffff;
-    color: #000000;  /* Added black text color */
-}
+        border-radius: 8px;
+        border: 2px solid #e2e8f0;
+        padding: 1rem;
+        font-size: 1rem;
+        transition: border-color 0.3s ease;
+        background-color: #ffffff;
+        color: #000000;
+    }
     
     .stTextArea > div > div > textarea:focus {
         border-color: #3b82f6;
@@ -459,7 +459,6 @@ def main():
     # Create two columns for side-by-side layout
     col1, col2 = st.columns([1, 1], gap="large")
     
-    # In the col1 section (input column), replace the language-bar with this dynamic version:
     with col1:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         
@@ -525,9 +524,12 @@ def main():
         
         # Translation output area
         if st.session_state.show_translation and st.session_state.translated_text:
+            detected_lang_name = LANGUAGES.get(st.session_state.detected_lang, 'Unknown').title()
             st.markdown(f"""
             <div class="translation-output has-content">
                 <div class="detected-language-info">
+                    <span class="language-icon">🌍</span>
+                    <span class="language-text">Detected Language: <span class="language-name">{detected_lang_name}</span></span>
                 </div>
                 <div class="translation-content">
                     {st.session_state.translated_text}
@@ -634,7 +636,7 @@ def main():
                 
                 if st.button(f"↩️ Restore #{i+1}", key=f"restore_{i}"):
                     st.session_state.input_text = item['source_text']
-                    st.session_state.target_lang = [k for k, v in lang_dict.items() if v == item['target_lang'][0]]
+                    st.session_state.target_lang = list(lang_dict.keys())[list(lang_dict.values()).index(item['target_lang'])]
                     st.rerun()
     
     # Footer
