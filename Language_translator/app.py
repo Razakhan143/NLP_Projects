@@ -1,6 +1,7 @@
 import streamlit as st
 from langdetect import detect, LangDetectException
-from googletrans import Translator, LANGUAGES
+from deep_translator import GoogleTranslator
+from googletrans import LANGUAGES  # Keep for language codes
 import pyperclip  # For copy to clipboard functionality
 from datetime import datetime
 import time
@@ -394,23 +395,21 @@ def detect_and_translate(text, target_lang):
                     detected_lang = "en"  # Fallback to English
                 time.sleep(0.5)
         
-        # Translate using Google Translate with retry logic
-        translator = Translator()
-        translation = None
+        # Translate using deep_translator.GoogleTranslator
+        translator = GoogleTranslator(source='auto', target=target_lang)
+        translated_text = None
         retry_count = 0
         
-        while retry_count < max_retries and translation is None:
+        while retry_count < max_retries and translated_text is None:
             try:
-                translation = translator.translate(text, dest=target_lang)
-                translated_text = translation.text
-                pronunciation = translation.pronunciation if translation.pronunciation else None
+                translated_text = translator.translate(text)
             except Exception as e:
                 retry_count += 1
                 if retry_count == max_retries:
                     raise e
                 time.sleep(1)
         
-        return detected_lang, translated_text, pronunciation, None
+        return detected_lang, translated_text, None, None  # No pronunciation support in deep_translator
     except Exception as e:
         return None, None, None, str(e)
 
@@ -537,7 +536,7 @@ def main():
             </div>
             """, unsafe_allow_html=True)
             
-            # Show pronunciation if available
+            # No pronunciation support in deep_translator
             if st.session_state.pronunciation:
                 st.markdown(f"""
                 <div style="margin-top: 0.5rem; font-size: 0.9rem; color: #64748b;">
